@@ -93,49 +93,50 @@
       "Pioneer Middle School": 0.33,
     };
 
-    function estimateTrip() {
-      const vehicleType = document.getElementById("vehicleType").value;
-      const miles = parseFloat(document.getElementById("miles").value) || 0;
-      const departTime = document.getElementById("departTime").value;
-      const returnTime = document.getElementById("returnTime").value;
-      const numVehicles = parseInt(document.getElementById("numVehicles").value) || 1;
-      const selectedSchool = document.getElementById("school").value;
+function estimateTrip() {
+  const vehicleType = document.getElementById("vehicleType").value;
+  const miles = parseFloat(document.getElementById("miles").value) || 0;
+  const departTime = document.getElementById("departTime").value;
+  const returnTime = document.getElementById("returnTime").value;
+  const numVehicles = parseInt(document.getElementById("numVehicles").value) || 1;
+  const selectedSchool = document.getElementById("school").value;
 
-      if (!departTime || !returnTime) {
-        document.getElementById("result").innerHTML = "<p class='text-yellow-200'>Please enter both departure and return times.</p>";
-        return;
-      }
+  let costPerMile = vehicleType === "Van" ? 0.67 : 0.96;
+  let costPerHour = vehicleType === "Van" ? 0 : 41.65;
 
-      let costPerMile = vehicleType === "Van" ? 0.67 : 0.96;
-      let costPerHour = vehicleType === "Van" ? 0 : 41.65;
+  const basePaddingHours = 0.75;
+  const schoolBufferMinutes = schoolBuffers[selectedSchool] || 0;
+  const schoolBufferHours = schoolBufferMinutes / 60;
 
-      const basePaddingHours = 0.75;
-      const schoolBufferMinutes = schoolBuffers[selectedSchool] || 0;
-      const schoolBufferHours = schoolBufferMinutes / 60;
+  let mileageCost = parseFloat((miles * costPerMile * numVehicles).toFixed(2));
+  let hourlyCost = 0;
 
-      let [departHour, departMinute] = departTime.split(":").map(Number);
-      let [returnHour, returnMinute] = returnTime.split(":").map(Number);
+  if (departTime && returnTime) {
+    let [departHour, departMinute] = departTime.split(":").map(Number);
+    let [returnHour, returnMinute] = returnTime.split(":").map(Number);
 
-      let depart = new Date(1970, 0, 1, departHour, departMinute);
-      let ret = new Date(1970, 0, 1, returnHour, returnMinute);
-      if (ret < depart) {
-        ret.setDate(ret.getDate() + 1); // overnight trip
-      }
+    let depart = new Date(1970, 0, 1, departHour, departMinute);
+    let ret = new Date(1970, 0, 1, returnHour, returnMinute);
+    if (ret < depart) ret.setDate(ret.getDate() + 1);
 
-      let durationHours = (ret - depart) / 3600000 + basePaddingHours + schoolBufferHours;
+    let durationHours = (ret - depart) / 3600000 + basePaddingHours + schoolBufferHours;
+    hourlyCost = parseFloat((durationHours * costPerHour * numVehicles).toFixed(2));
+  }
 
-      const mileageCost = parseFloat((miles * costPerMile).toFixed(2));
-      const hourlyCost = parseFloat((durationHours * costPerHour).toFixed(2));
-      const total = parseFloat((mileageCost + hourlyCost).toFixed(2)) * numVehicles;
+  let total = parseFloat((mileageCost + hourlyCost).toFixed(2));
 
-      document.getElementById("result").innerHTML = `
-        <p>Mileage Cost: $${mileageCost.toFixed(2)}</p>
-        <p>Hourly Cost: $${hourlyCost.toFixed(2)}</p>
-        <p>Total Estimated Cost: $${total.toFixed(2)}</p>
-      `;
+  document.getElementById("result").innerHTML = `
+    <p>Mileage Cost: $${mileageCost.toFixed(2)}</p>
+    <p>Hourly Cost: $${hourlyCost.toFixed(2)}</p>
+    <p>Total Estimated Cost: $${total.toFixed(2)}</p>
+  `;
 
-      document.getElementById("actionButtons").style.display = "flex";
-    }
+  document.getElementById("estimateButton").style.display = "none";
+  document.getElementById("actionButtons").style.display = "flex";
+}
+
+
+
 
     function resetForm() {
       document.getElementById("school").value = "Shelton High School";
