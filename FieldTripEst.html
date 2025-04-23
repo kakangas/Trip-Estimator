@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Field Trip Estimator</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 p-6">
+  <div id="form-container" class="max-w-xl mx-auto bg-black shadow-lg rounded-2xl p-6" style="background-image: url('Olympic Mountains.jpg'); background-size: cover; background-position: center;">
+    <h1 class="text-2xl font-bold text-center mb-4 text-white">Mason County Transportation Cooperative<br>🚍 School Field Trip Estimator 🚍</h1>
+
+    <div class="space-y-4">
+      <div class="flex space-x-4">
+        <div class="w-1/2">
+          <label class="block text-sm font-medium text-white">Select Your School</label>
+          <select id="school" class="w-full mt-1 p-2 border rounded">
+            <option value="Shelton High School">Shelton High School</option>
+            <option value="Choice High School">Choice High School</option>
+            <option value="Cedar High School">Cedar High School</option>
+            <option value="Pathways">Pathways</option>
+            <option value="Oakland Bay Junior High">Oakland Bay Junior High</option>
+            <option value="Olympic Middle School">Olympic Middle School</option>
+            <option value="Mountain View Elementary">Mountain View Elementary</option>
+            <option value="Evergreen Elementary">Evergreen Elementary</option>
+            <option value="Bordeaux Elementary">Bordeaux Elementary</option>
+            <option value="Pioneer Elementary">Pioneer Elementary</option>
+            <option value="Pioneer Middle School">Pioneer Middle School</option>
+          </select>
+        </div>
+
+        <div class="w-1/2">
+          <label class="block text-sm font-medium text-white">Total Miles</label>
+          <input type="number" id="miles" class="w-full mt-1 p-2 border rounded" />
+        </div>
+      </div>
+
+      <div class="flex space-x-4">
+        <div class="w-1/2">
+          <label class="block text-sm font-medium text-white">Vehicle Type</label>
+          <select id="vehicleType" class="w-full mt-1 p-2 border rounded">
+            <option value="Bus">Bus</option>
+            <option value="Van">Van</option>
+          </select>
+        </div>
+
+        <div class="w-1/2">
+          <label class="block text-sm font-medium text-white">Number of Vehicles</label>
+          <input type="number" id="numVehicles" class="w-full mt-1 p-2 border rounded" min="1" value="1" />
+        </div>
+      </div>
+
+      <div class="flex space-x-4">
+        <div class="w-1/2">
+          <label class="block text-sm font-medium text-white">Departure Time from School</label>
+          <input type="time" id="departTime" class="w-full mt-1 p-2 border rounded" />
+        </div>
+
+        <div class="w-1/2">
+          <label class="block text-sm font-medium text-white">Return Time to School</label>
+          <input type="time" id="returnTime" class="w-full mt-1 p-2 border rounded" />
+        </div>
+      </div>
+
+      <!-- Hidden Estimate button since we're updating live -->
+      <button id="estimateButton" style="display: none;" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mt-4">
+        Estimate Trip Cost
+      </button>
+
+      <div id="result" class="mt-4 text-center text-lg font-semibold text-white"></div>
+
+      <div id="actionButtons" class="flex flex-wrap gap-4 justify-center mt-6" style="display: none;">
+        <button onclick="window.print()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">🖨️ Print</button>
+        <button onclick="resetForm()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">🔄 Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const schoolBuffers = {
+      "Shelton High School": 0.08,
+      "Cedar High School": 0.08,
+      "Choice High School": 0.17,
+      "Pathways": 0.17,
+      "Oakland Bay Junior High": 0.08,
+      "Olympic Middle School": 0.08,
+      "Mountain View Elementary": 0.08,
+      "Evergreen Elementary": 0.17,
+      "Bordeaux Elementary": 0.25,
+      "Pioneer Elementary": 0.33,
+      "Pioneer Middle School": 0.33,
+    };
+
+    function estimateTrip() {
+      const vehicleType = document.getElementById("vehicleType").value;
+      const miles = parseFloat(document.getElementById("miles").value) || 0;
+      const departTime = document.getElementById("departTime").value;
+      const returnTime = document.getElementById("returnTime").value;
+      const numVehicles = parseInt(document.getElementById("numVehicles").value) || 1;
+      const selectedSchool = document.getElementById("school").value;
+
+      if (!departTime || !returnTime) {
+        document.getElementById("result").innerHTML = "<p class='text-yellow-200'>Please enter both departure and return times.</p>";
+        return;
+      }
+
+      let costPerMile = vehicleType === "Van" ? 0.67 : 0.96;
+      let costPerHour = vehicleType === "Van" ? 0 : 41.65;
+
+      const basePaddingHours = 0.75;
+      const schoolBufferMinutes = schoolBuffers[selectedSchool] || 0;
+      const schoolBufferHours = schoolBufferMinutes / 60;
+
+      let [departHour, departMinute] = departTime.split(":").map(Number);
+      let [returnHour, returnMinute] = returnTime.split(":").map(Number);
+
+      let depart = new Date(1970, 0, 1, departHour, departMinute);
+      let ret = new Date(1970, 0, 1, returnHour, returnMinute);
+      if (ret < depart) {
+        ret.setDate(ret.getDate() + 1); // overnight trip
+      }
+
+      let durationHours = (ret - depart) / 3600000 + basePaddingHours + schoolBufferHours;
+
+      const mileageCost = parseFloat((miles * costPerMile).toFixed(2));
+      const hourlyCost = parseFloat((durationHours * costPerHour).toFixed(2));
+      const total = parseFloat((mileageCost + hourlyCost).toFixed(2)) * numVehicles;
+
+      document.getElementById("result").innerHTML = `
+        <p>Mileage Cost: $${mileageCost.toFixed(2)}</p>
+        <p>Hourly Cost: $${hourlyCost.toFixed(2)}</p>
+        <p>Total Estimated Cost: $${total.toFixed(2)}</p>
+      `;
+
+      document.getElementById("actionButtons").style.display = "flex";
+    }
+
+    function resetForm() {
+      document.getElementById("school").value = "Shelton High School";
+      document.getElementById("vehicleType").value = "Bus";
+      document.getElementById("numVehicles").value = 1;
+      document.getElementById("departTime").value = "";
+      document.getElementById("returnTime").value = "";
+      document.getElementById("miles").value = "";
+
+      document.getElementById("result").innerHTML = "";
+      document.getElementById("actionButtons").style.display = "none";
+    }
+
+    function setupLiveUpdate() {
+      const inputs = document.querySelectorAll("#form-container input, #form-container select");
+      inputs.forEach(input => {
+        input.addEventListener("input", estimateTrip);
+      });
+    }
+
+    window.onload = setupLiveUpdate;
+  </script>
+</body>
+</html>
